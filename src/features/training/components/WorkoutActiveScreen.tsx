@@ -94,6 +94,7 @@ export default function WorkoutActiveScreen() {
                 <div>训练时长：{Math.floor((log.totalDuration || 0) / 60)}分钟</div>
                 <div>总容量：{log.totalVolume?.toLocaleString() || 0}kg</div>
                 <div>完成动作：{log.exercises.length}个</div>
+                <div>消耗热量：约{log.estimatedCalories || 0}kcal</div>
               </div>
             ),
           });
