@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { ExerciseSetLog, ExerciseLog, WorkoutLog } from '../types';
 import { db } from '../db';
+import { quickEstimateCalories } from '../services/calorieEstimation';
 import { v4 as uuid } from 'uuid';
 
 // ---- Workout Session State ----
@@ -65,6 +66,8 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
     if (!session) return null;
 
     const now = Date.now();
+    const totalDuration = Math.round((now - session.startTime) / 1000);
+
     let totalVolume = 0;
     session.exercises.forEach((ex) => {
       ex.sets.forEach((s) => {
@@ -74,6 +77,18 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
       });
     });
 
+    // Estimate calorie burn
+    let userWeight = 70; // default
+    try {
+      const profile = await db.userProfile.get('default');
+      if (profile?.weight) userWeight = profile.weight;
+    } catch { /* use default */ }
+    const estimatedCalories = quickEstimateCalories(
+      session.exercises,
+      totalDuration,
+      userWeight
+    );
+
     const log: WorkoutLog = {
       id: uuid(),
       planId: session.planId,
@@ -81,12 +96,25 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
       exercises: session.exercises,
       startTime: session.startTime,
       endTime: now,
-      totalDuration: Math.round((now - session.startTime) / 1000),
+      totalDuration,
       totalVolume,
+      estimatedCalories,
       createdAt: now,
     };
 
     await db.workoutLogs.put(log);
+
+    // Update plan's lastCompletedAt if this was from a plan
+    if (session.planId) {
+      const plan = await db.workoutPlans.get(session.planId);
+      if (plan) {
+        await db.workoutPlans.update(session.planId, {
+          lastCompletedAt: now,
+          updatedAt: now,
+        });
+      }
+    }
+
     set({ session: null, isDrawerOpen: false });
     return log;
   },
