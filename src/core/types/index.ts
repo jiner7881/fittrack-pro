@@ -105,6 +105,7 @@ export interface WorkoutPlan {
   scheduledDate?: string;     // ISO date
   weekDay?: number;           // 0-6, for weekly template
   isTemplate: boolean;
+  lastCompletedAt?: number;   // timestamp of last completed workout
   createdAt: number;
   updatedAt: number;
 }
